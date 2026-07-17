@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     # Always protected regardless of config
     protected_ips: str = "127.0.0.1,::1,localhost"
 
+    # --- Optional API key auth (empty = disabled for local demo) ---
+    # When set, clients must send header: X-API-Key: <value>
+    api_key: str = ""
+
     # --- Optional SMTP email alerts (no-op if host is empty) ---
     smtp_host: str = ""
     smtp_port: int = 587
@@ -43,7 +47,7 @@ class Settings(BaseSettings):
     smtp_to: str = ""
 
     # --- API ---
-    cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost"
+    cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost,http://127.0.0.1:3000,http://127.0.0.1"
 
     @property
     def log_path(self) -> str:

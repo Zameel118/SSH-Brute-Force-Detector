@@ -11,6 +11,7 @@ import shutil
 import subprocess
 
 from app.config import Settings
+from app.validators import validate_ip
 
 logger = logging.getLogger("firewall")
 
@@ -22,12 +23,21 @@ class FirewallManager:
     def is_protected(self, ip: str) -> bool:
         return ip in self.settings.protected_ip_set or ip in ("127.0.0.1", "::1", "localhost")
 
+    def _safe_ip(self, ip: str) -> str:
+        """Validate IP before any ufw subprocess call."""
+        return validate_ip(ip)
+
     def block_ip(self, ip: str) -> tuple[bool, str]:
         """
         Block an IP. Returns (success, message).
         In simulation mode: always succeeds with a log message.
         In live mode: runs `ufw deny from <ip>` via subprocess.
         """
+        try:
+            ip = self._safe_ip(ip)
+        except ValueError as exc:
+            return False, str(exc)
+
         if self.is_protected(ip):
             msg = f"Refused to block protected IP {ip}"
             logger.warning(msg)
@@ -41,6 +51,11 @@ class FirewallManager:
         return self._run_ufw(["deny", "from", ip], f"Blocked {ip} with ufw")
 
     def unblock_ip(self, ip: str) -> tuple[bool, str]:
+        try:
+            ip = self._safe_ip(ip)
+        except ValueError as exc:
+            return False, str(exc)
+
         if self.settings.mode != "live":
             msg = f"[SIMULATION] Would unblock {ip} via ufw delete deny from {ip}"
             logger.info(msg)
@@ -53,6 +68,11 @@ class FirewallManager:
         Rate-limit stage. ufw has `limit` which rate-limits SSH connections.
         In simulation we just log it.
         """
+        try:
+            ip = self._safe_ip(ip)
+        except ValueError as exc:
+            return False, str(exc)
+
         if self.is_protected(ip):
             msg = f"Refused to rate-limit protected IP {ip}"
             logger.warning(msg)

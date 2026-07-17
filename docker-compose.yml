@@ -13,7 +13,8 @@ services:
       TIME_WINDOW_MINUTES: "10"
       UNBLOCK_AFTER_HOURS: "24"
       ADMIN_IP: "127.0.0.1"
-      CORS_ORIGINS: "http://localhost,http://localhost:80,http://127.0.0.1"
+      CORS_ORIGINS: "http://localhost,http://localhost:80,http://localhost:3000,http://127.0.0.1,http://127.0.0.1:3000"
+      API_KEY: ""
     volumes:
       - detector-data:/app/data
     ports:

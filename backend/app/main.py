@@ -16,13 +16,17 @@ from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.auth import APIKeyMiddleware
 from app.config import get_settings
 from app.database import SessionLocal, init_db
 from app.detection import DetectionEngine
 from app.escalation import EscalationService
 from app.firewall import FirewallManager
 from app.routers import config as config_router
+from app.routers import demo as demo_router
 from app.routers import events as events_router
+from app.routers import export as export_router
+from app.routers import geo as geo_router
 from app.routers import ips as ips_router
 from app.routers import simulation as simulation_router
 from app.simulator import ensure_log_file, seed_background_noise
@@ -57,7 +61,6 @@ async def _auto_unblock_loop(app: FastAPI) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    # Make sure data directory and simulated log exist
     Path("./data").mkdir(parents=True, exist_ok=True)
     ensure_log_file(settings.simulated_log_path)
 
@@ -69,6 +72,13 @@ async def lifespan(app: FastAPI):
         block_threshold=settings.block_threshold,
         time_window_minutes=settings.time_window_minutes,
     )
+    # Restore sliding-window state so restarts don't forget in-progress attacks
+    db = SessionLocal()
+    try:
+        detector.load_from_db(db)
+    finally:
+        db.close()
+
     firewall = FirewallManager(settings)
     escalation = EscalationService(settings, detector, firewall)
 
@@ -83,7 +93,6 @@ async def lifespan(app: FastAPI):
     app.state.escalation = escalation
     app.state.tailer = tailer
 
-    # Seed a few benign lines on first run so the log isn't empty
     log_file = Path(settings.simulated_log_path)
     if log_file.stat().st_size == 0:
         seed_background_noise(settings.simulated_log_path, count=3)
@@ -93,6 +102,8 @@ async def lifespan(app: FastAPI):
 
     logger.info("SSH Brute Force Detector started in %s mode", settings.mode)
     logger.info("Watching log: %s", settings.log_path)
+    if settings.api_key:
+        logger.info("API key auth is ENABLED")
 
     yield
 
@@ -108,35 +119,55 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="SSH Brute Force Detector",
     description="Monitors SSH auth logs, detects brute-force attacks, and escalates responses.",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 
 settings = get_settings()
+# IMPORTANT: do NOT combine allow_origins=["*"] with allow_credentials=True —
+# browsers reject that combination and CORS fails silently for unlisted origins.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origin_list + ["*"],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(APIKeyMiddleware)
 
 app.include_router(events_router.router)
 app.include_router(ips_router.router)
 app.include_router(config_router.router)
 app.include_router(simulation_router.router)
+app.include_router(demo_router.router)
+app.include_router(export_router.router)
+app.include_router(geo_router.router)
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "mode": get_settings().mode}
+    s = get_settings()
+    return {
+        "status": "ok",
+        "mode": s.mode,
+        "auth_required": bool(s.api_key),
+    }
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    settings = get_settings()
+    if hasattr(websocket.app.state, "settings"):
+        settings = websocket.app.state.settings
+    key = (settings.api_key or "").strip()
+    if key:
+        provided = websocket.query_params.get("api_key") or websocket.headers.get("x-api-key")
+        if provided != key:
+            await websocket.close(code=4401)
+            return
+
     await ws_manager.connect(websocket)
     try:
-        # Keep the connection alive; clients don't need to send anything
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:

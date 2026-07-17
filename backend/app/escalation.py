@@ -287,8 +287,8 @@ class EscalationService:
             await self._broadcast_event(event)
             return
 
-        # Failed attempt
-        count, new_stage = self.detector.record_failure(ip, parsed.timestamp)
+        # Failed attempt — pass db so the sliding window survives restarts
+        count, new_stage = self.detector.record_failure(ip, parsed.timestamp, db=db)
 
         # Always log the raw failure in the feed
         status = "allowed"
@@ -302,6 +302,7 @@ class EscalationService:
         elif self._get_active_block(db, ip):
             block = self._get_active_block(db, ip)
             status = "blocked" if block and block.stage == "blocked" else "rate_limited"
+            action = "already_blocked"
 
         event = self._save_event(
             db,
@@ -328,7 +329,7 @@ class EscalationService:
         ok, msg = self.firewall.unblock_ip(ip)
         block.is_active = False
         db.commit()
-        self.detector.clear_ip(ip)
+        self.detector.clear_ip(ip, db=db)
 
         event = self._save_event(
             db,

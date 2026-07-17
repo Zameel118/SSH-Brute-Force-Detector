@@ -9,7 +9,7 @@ const STATUS_STYLES = {
 
 export function StatusBadge({ status }) {
   const style = STATUS_STYLES[status] || STATUS_STYLES.allowed;
-  const label = (status || "unknown").replace("_", " ");
+  const label = (status || "unknown").replace(/_/g, " ");
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium capitalize ${style}`}>
       {label}
@@ -35,4 +35,10 @@ export function formatDuration(seconds) {
   const m = Math.floor((seconds % 3600) / 60);
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
+}
+
+/** Format action_taken for display */
+export function formatAction(action) {
+  if (!action || action === "none") return "—";
+  return action.replace(/_/g, " ");
 }

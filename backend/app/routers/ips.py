@@ -35,6 +35,12 @@ def list_blocked(db: Session = Depends(get_db)):
 
 @router.post("/blocked/{ip}/unblock", response_model=schemas.EventOut)
 async def unblock_ip(ip: str, request: Request, db: Session = Depends(get_db)):
+    from app.validators import validate_ip
+
+    try:
+        ip = validate_ip(ip)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     service = request.app.state.escalation
     event = await service.unblock_ip(db, ip, reason="manual_unblock")
     if not event:

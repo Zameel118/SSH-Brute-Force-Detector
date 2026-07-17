@@ -4,7 +4,9 @@ Pydantic schemas — request/response shapes for the REST API.
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.validators import validate_ip
 
 
 # --- Events ---
@@ -41,6 +43,11 @@ class BlockedIPOut(BaseModel):
 class IPListCreate(BaseModel):
     ip_address: str = Field(..., min_length=1, max_length=64)
     reason: str = ""
+
+    @field_validator("ip_address")
+    @classmethod
+    def check_ip(cls, v: str) -> str:
+        return validate_ip(v)
 
 
 class IPListOut(BaseModel):
@@ -84,6 +91,11 @@ class SimulateAttackRequest(BaseModel):
     target_user: str = "root"
     num_attempts: int = 20
     include_normal_traffic: bool = True
+
+    @field_validator("attacker_ip")
+    @classmethod
+    def check_attacker_ip(cls, v: str) -> str:
+        return validate_ip(v)
 
 
 class SimulateAttackResponse(BaseModel):

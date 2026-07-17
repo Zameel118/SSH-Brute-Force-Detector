@@ -8,11 +8,14 @@ Includes a React dashboard for live attack feeds, charts, and whitelist/blacklis
 
 - **Simulation Mode (default)** — generates realistic fake `/var/log/auth.log` lines; blocks are simulated (no firewall changes). Works with zero external setup.
 - **Live Mode (optional)** — can watch a real auth log and run `ufw` commands. Hardcoded safety: never blocks `127.0.0.1`, `::1`, `localhost`, or the configured admin IP.
-- Sliding-window detection with configurable thresholds
+- Sliding-window detection with configurable thresholds (**persisted to SQLite** so restarts don't reset in-progress attacks)
 - Escalating response + auto-unblock after N hours
-- Whitelist / blacklist CRUD
+- Whitelist / blacklist CRUD with IP format validation
 - REST API + WebSocket live updates
-- Dark security-dashboard UI
+- Dark/light theme dashboard
+- **Reset Demo**, sample attack **replay**, GeoIP labels + **world map**
+- CSV / printable incident report export, **fail2ban config** export
+- Optional **API key** auth (`API_KEY` env / `X-API-Key` header)
 
 ## Quick start (Docker)
 

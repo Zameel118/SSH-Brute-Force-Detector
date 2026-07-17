@@ -78,3 +78,36 @@ class TailerState(Base):
     log_path: Mapped[str] = mapped_column(String(512), unique=True)
     byte_offset: Mapped[int] = mapped_column(Integer, default=0)
     inode: Mapped[str] = mapped_column(String(64), default="")  # detects log rotation
+
+
+class DetectionState(Base):
+    """
+    Persists per-IP sliding-window failure timestamps + stage reached.
+    Survives backend restarts so an in-progress attack isn't forgotten.
+    timestamps_json stores a JSON list of ISO-8601 UTC strings.
+    """
+
+    __tablename__ = "detection_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ip_address: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    timestamps_json: Mapped[str] = mapped_column(Text, default="[]")
+    stage_reached: Mapped[str] = mapped_column(String(32), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class GeoCache(Base):
+    """Cached GeoIP lookups so we don't hammer the free API on every request."""
+
+    __tablename__ = "geo_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ip_address: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    country: Mapped[str] = mapped_column(String(128), default="")
+    country_code: Mapped[str] = mapped_column(String(8), default="")
+    city: Mapped[str] = mapped_column(String(128), default="")
+    latitude: Mapped[str] = mapped_column(String(32), default="")
+    longitude: Mapped[str] = mapped_column(String(32), default="")
+    org: Mapped[str] = mapped_column(String(256), default="")
+    raw_label: Mapped[str] = mapped_column(String(256), default="")  # e.g. "RU · Russia"
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
