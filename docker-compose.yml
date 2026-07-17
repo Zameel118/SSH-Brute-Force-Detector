@@ -1,0 +1,39 @@
+services:
+  backend:
+    build: ./backend
+    container_name: ssh-detector-backend
+    restart: unless-stopped
+    environment:
+      MODE: simulation
+      SIMULATED_LOG_PATH: /app/data/simulated_auth.log
+      DATABASE_URL: sqlite:////app/data/detector.db
+      ALERT_THRESHOLD: "5"
+      RATE_LIMIT_THRESHOLD: "10"
+      BLOCK_THRESHOLD: "15"
+      TIME_WINDOW_MINUTES: "10"
+      UNBLOCK_AFTER_HOURS: "24"
+      ADMIN_IP: "127.0.0.1"
+      CORS_ORIGINS: "http://localhost,http://localhost:80,http://127.0.0.1"
+    volumes:
+      - detector-data:/app/data
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    build: ./frontend
+    container_name: ssh-detector-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  detector-data:
