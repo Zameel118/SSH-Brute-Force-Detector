@@ -1,0 +1,20 @@
+Jul 17 08:11:01 ubuntu-server sshd[41001]: Failed password for root from 203.0.113.10 port 50122 ssh2
+Jul 17 08:11:03 ubuntu-server sshd[41002]: Failed password for root from 203.0.113.10 port 50123 ssh2
+Jul 17 08:11:05 ubuntu-server sshd[41003]: Invalid user admin from 203.0.113.10 port 50124
+Jul 17 08:11:07 ubuntu-server sshd[41004]: Failed password for invalid user admin from 203.0.113.10 port 50125 ssh2
+Jul 17 08:11:09 ubuntu-server sshd[41005]: Failed password for root from 203.0.113.10 port 50126 ssh2
+Jul 17 08:11:11 ubuntu-server sshd[41006]: Failed password for ubuntu from 198.51.100.20 port 44101 ssh2
+Jul 17 08:11:13 ubuntu-server sshd[41007]: Failed password for ubuntu from 198.51.100.20 port 44102 ssh2
+Jul 17 08:11:15 ubuntu-server sshd[41008]: Invalid user oracle from 198.51.100.20 port 44103
+Jul 17 08:11:17 ubuntu-server sshd[41009]: Failed password for root from 203.0.113.10 port 50127 ssh2
+Jul 17 08:11:19 ubuntu-server sshd[41010]: Failed password for root from 203.0.113.10 port 50128 ssh2
+Jul 17 08:11:21 ubuntu-server sshd[41011]: Failed password for root from 203.0.113.10 port 50129 ssh2
+Jul 17 08:11:23 ubuntu-server sshd[41012]: Failed password for root from 203.0.113.10 port 50130 ssh2
+Jul 17 08:11:25 ubuntu-server sshd[41013]: Failed password for root from 203.0.113.10 port 50131 ssh2
+Jul 17 08:11:27 ubuntu-server sshd[41014]: Failed password for root from 203.0.113.10 port 50132 ssh2
+Jul 17 08:11:29 ubuntu-server sshd[41015]: Failed password for root from 203.0.113.10 port 50133 ssh2
+Jul 17 08:11:31 ubuntu-server sshd[41016]: Failed password for root from 203.0.113.10 port 50134 ssh2
+Jul 17 08:11:33 ubuntu-server sshd[41017]: Failed password for root from 203.0.113.10 port 50135 ssh2
+Jul 17 08:11:35 ubuntu-server sshd[41018]: Failed password for postgres from 198.51.100.20 port 44104 ssh2
+Jul 17 08:11:37 ubuntu-server sshd[41019]: Failed password for mysql from 198.51.100.20 port 44105 ssh2
+Jul 17 08:11:39 ubuntu-server sshd[41020]: Failed password for test from 198.51.100.20 port 44106 ssh2

@@ -1,10 +1,16 @@
 """
-GeoIP lookups via ipapi.co free tier (no API key required for light use).
-Results are cached in SQLite. Documentation IPs (TEST-NET) get fake labels
-so demos work offline without hitting the API.
+GeoIP lookups with demo-first fallbacks.
+
+Priority:
+  1. Private / LAN IPs → labeled Private (no map pin)
+  2. Hardcoded demo attacker IPs → always return coords (offline / recruiter demos)
+  3. SQLite cache (only if it has usable lat/lon)
+  4. ipapi.co (optional; free tier rate-limits aggressively)
+  5. Deterministic synthetic coords from IP hash so the map never looks broken
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import datetime, timezone
 from typing import Optional
@@ -16,8 +22,9 @@ from app import models
 
 logger = logging.getLogger("geo")
 
-# RFC 5737 documentation / TEST-NET ranges — used by our simulator
-_DEMO_GEO = {
+# RFC 5737 documentation / TEST-NET ranges — used by simulator + sample logs.
+# These NEVER call the external API, so demos work offline and survive 403s.
+_DEMO_GEO: dict[str, dict] = {
     "203.0.113.50": {
         "country": "Russia",
         "country_code": "RU",
@@ -48,11 +55,30 @@ _DEMO_GEO = {
     "192.0.2.99": {
         "country": "Brazil",
         "country_code": "BR",
-        "city": "São Paulo",
+        "city": "Sao Paulo",
         "latitude": "-23.5505",
         "longitude": "-46.6333",
         "org": "Demo Attack Net",
         "raw_label": "BR - Brazil",
+    },
+    # Extra demo pins used if someone customizes the simulate IP slightly
+    "203.0.113.100": {
+        "country": "Germany",
+        "country_code": "DE",
+        "city": "Frankfurt",
+        "latitude": "50.1109",
+        "longitude": "8.6821",
+        "org": "Demo Attack Net",
+        "raw_label": "DE - Germany",
+    },
+    "198.51.100.77": {
+        "country": "India",
+        "country_code": "IN",
+        "city": "Mumbai",
+        "latitude": "19.0760",
+        "longitude": "72.8777",
+        "org": "Demo Attack Net",
+        "raw_label": "IN - India",
     },
 }
 
@@ -71,16 +97,24 @@ def _is_private(ip: str) -> bool:
 
 
 def _row_to_dict(row: models.GeoCache) -> dict:
+    lat = float(row.latitude) if row.latitude not in ("", None) else None
+    lon = float(row.longitude) if row.longitude not in ("", None) else None
     return {
         "ip": row.ip_address,
         "country": row.country,
         "country_code": row.country_code,
         "city": row.city,
-        "latitude": float(row.latitude) if row.latitude else None,
-        "longitude": float(row.longitude) if row.longitude else None,
+        "latitude": lat,
+        "longitude": lon,
         "org": row.org,
-        "label": row.raw_label,
+        "label": row.raw_label or "Unknown",
     }
+
+
+def _has_coords(info: dict | None) -> bool:
+    if not info:
+        return False
+    return info.get("latitude") is not None and info.get("longitude") is not None
 
 
 def _upsert_cache(db: Session, ip: str, data: dict) -> models.GeoCache:
@@ -106,8 +140,34 @@ def _upsert_cache(db: Session, ip: str, data: dict) -> models.GeoCache:
     return row
 
 
+def _synthetic_fallback(ip: str) -> dict:
+    """
+    Deterministic lat/lon from the IP hash so the map always has a pin
+    when the external GeoIP API is rate-limited or offline.
+    """
+    digest = hashlib.md5(ip.encode("utf-8")).hexdigest()
+    # Map hash bytes into a plausible land-ish band (avoid poles/oceans roughly)
+    lat = (int(digest[0:4], 16) / 65535.0) * 120.0 - 60.0   # -60 .. +60
+    lon = (int(digest[4:8], 16) / 65535.0) * 360.0 - 180.0  # -180 .. +180
+    return {
+        "country": "Unknown",
+        "country_code": "XX",
+        "city": "",
+        "latitude": f"{lat:.4f}",
+        "longitude": f"{lon:.4f}",
+        "org": "Fallback (API unavailable)",
+        "raw_label": "XX - Unknown (offline)",
+    }
+
+
+def _demo_or_synthetic(ip: str) -> dict:
+    if ip in _DEMO_GEO:
+        return dict(_DEMO_GEO[ip])
+    return _synthetic_fallback(ip)
+
+
 async def lookup_ip(db: Session, ip: str) -> Optional[dict]:
-    """Return geo info for an IP, using cache / demo map / ipapi.co."""
+    """Return geo info for an IP. Always returns a result for public IPs (map-safe)."""
     if not ip or _is_private(ip):
         return {
             "ip": ip,
@@ -120,39 +180,47 @@ async def lookup_ip(db: Session, ip: str) -> Optional[dict]:
             "label": "LAN - Private",
         }
 
-    cached = db.query(models.GeoCache).filter(models.GeoCache.ip_address == ip).first()
-    if cached:
-        return _row_to_dict(cached)
-
+    # 1) Demo IPs first — never depend on the network for recruiter demos
     if ip in _DEMO_GEO:
         row = _upsert_cache(db, ip, _DEMO_GEO[ip])
         return _row_to_dict(row)
 
+    # 2) Cache only if it has usable coordinates
+    cached = db.query(models.GeoCache).filter(models.GeoCache.ip_address == ip).first()
+    if cached:
+        info = _row_to_dict(cached)
+        if _has_coords(info):
+            return info
+
+    # 3) Try external API (best-effort)
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=4.0) as client:
             resp = await client.get(f"https://ipapi.co/{ip}/json/")
-            if resp.status_code != 200:
-                logger.warning("ipapi.co returned %s for %s", resp.status_code, ip)
-                return None
-            data = resp.json()
-            if data.get("error"):
-                return None
-            code = data.get("country_code") or ""
-            country = data.get("country_name") or data.get("country") or ""
-            payload = {
-                "country": country,
-                "country_code": code,
-                "city": data.get("city") or "",
-                "latitude": data.get("latitude") or "",
-                "longitude": data.get("longitude") or "",
-                "org": data.get("org") or "",
-                "raw_label": f"{code} - {country}".strip(" -") if code or country else "Unknown",
-            }
-            row = _upsert_cache(db, ip, payload)
-            return _row_to_dict(row)
+            if resp.status_code == 200:
+                data = resp.json()
+                if not data.get("error") and data.get("latitude") is not None:
+                    code = data.get("country_code") or ""
+                    country = data.get("country_name") or data.get("country") or ""
+                    payload = {
+                        "country": country,
+                        "country_code": code,
+                        "city": data.get("city") or "",
+                        "latitude": data.get("latitude") or "",
+                        "longitude": data.get("longitude") or "",
+                        "org": data.get("org") or "",
+                        "raw_label": f"{code} - {country}".strip(" -") if code or country else "Unknown",
+                    }
+                    row = _upsert_cache(db, ip, payload)
+                    return _row_to_dict(row)
+            else:
+                logger.warning("ipapi.co returned %s for %s — using offline fallback", resp.status_code, ip)
     except Exception:
-        logger.exception("GeoIP lookup failed for %s", ip)
-        return None
+        logger.warning("GeoIP lookup failed for %s — using offline fallback", ip, exc_info=True)
+
+    # 4) Always fall back so the map is never empty during a demo
+    payload = _demo_or_synthetic(ip)
+    row = _upsert_cache(db, ip, payload)
+    return _row_to_dict(row)
 
 
 async def lookup_many(db: Session, ips: list[str]) -> list[dict]:

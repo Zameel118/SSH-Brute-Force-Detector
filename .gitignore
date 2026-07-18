@@ -16,6 +16,8 @@ data/
 backend/data/
 *.db
 *.log
+# Keep shipped demo attack samples (otherwise *.log ignores them)
+!backend/samples/*.log
 
 # IDE / OS
 .idea/

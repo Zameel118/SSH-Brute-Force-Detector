@@ -1,0 +1,21 @@
+Jul 17 10:15:01 ubuntu-server sshd[33001]: Accepted publickey for alice from 192.168.1.10 port 45001 ssh2
+Jul 17 10:15:20 ubuntu-server sshd[33002]: Accepted password for bob from 192.168.1.20 port 45002 ssh2
+Jul 17 10:16:01 ubuntu-server sshd[33003]: Failed password for deploy from 192.0.2.99 port 52001 ssh2
+Jul 17 10:16:40 ubuntu-server sshd[33004]: Accepted publickey for deploy from 10.0.0.5 port 45003 ssh2
+Jul 17 10:17:10 ubuntu-server sshd[33005]: Failed password for admin from 192.0.2.99 port 52002 ssh2
+Jul 17 10:17:45 ubuntu-server sshd[33006]: Invalid user webmaster from 192.0.2.99 port 52003
+Jul 17 10:18:20 ubuntu-server sshd[33007]: Failed password for root from 192.0.2.99 port 52004 ssh2
+Jul 17 10:18:50 ubuntu-server sshd[33008]: Accepted publickey for alice from 192.168.1.10 port 45004 ssh2
+Jul 17 10:19:15 ubuntu-server sshd[33009]: Failed password for root from 192.0.2.99 port 52005 ssh2
+Jul 17 10:19:50 ubuntu-server sshd[33010]: Failed password for ubuntu from 192.0.2.99 port 52006 ssh2
+Jul 17 10:20:20 ubuntu-server sshd[33011]: Failed password for pi from 192.0.2.99 port 52007 ssh2
+Jul 17 10:20:55 ubuntu-server sshd[33012]: Failed password for guest from 192.0.2.99 port 52008 ssh2
+Jul 17 10:21:30 ubuntu-server sshd[33013]: Failed password for test from 192.0.2.99 port 52009 ssh2
+Jul 17 10:22:00 ubuntu-server sshd[33014]: Failed password for ftp from 192.0.2.99 port 52010 ssh2
+Jul 17 10:22:35 ubuntu-server sshd[33015]: Failed password for oracle from 192.0.2.99 port 52011 ssh2
+Jul 17 10:23:10 ubuntu-server sshd[33016]: Failed password for postgres from 192.0.2.99 port 52012 ssh2
+Jul 17 10:23:45 ubuntu-server sshd[33017]: Failed password for mysql from 192.0.2.99 port 52013 ssh2
+Jul 17 10:24:20 ubuntu-server sshd[33018]: Failed password for root from 192.0.2.99 port 52014 ssh2
+Jul 17 10:24:55 ubuntu-server sshd[33019]: Failed password for root from 192.0.2.99 port 52015 ssh2
+Jul 17 10:25:30 ubuntu-server sshd[33020]: Failed password for root from 192.0.2.99 port 52016 ssh2
+Jul 17 10:26:00 ubuntu-server sshd[33021]: Accepted publickey for bob from 192.168.1.20 port 45005 ssh2
