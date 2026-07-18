@@ -107,8 +107,11 @@ def get_stats(db: Session = Depends(get_db)):
         _note_ts(row.ip_address, row.blocked_at)
 
     stage_by_ip = {row.ip_address: row.stage for row in active}
+    expires_by_ip = {row.ip_address: row.expires_at for row in active}
     top_pairs = ip_counter.most_common(15)
     top_ips = [ip for ip, _ in top_pairs]
+    total_hits = sum(c for _, c in top_pairs) or 1
+    max_hits = max((c for _, c in top_pairs), default=1)
 
     geo_by_ip: dict[str, models.GeoCache] = {}
     if top_ips:
@@ -131,17 +134,37 @@ def get_stats(db: Session = Depends(get_db)):
         loc = None
         if geo:
             loc = geo.raw_label or (
-                f"{geo.country_code} · {geo.country}".strip(" ·") if geo.country_code or geo.country else None
+                f"{geo.country_code} · {geo.country}".strip(" ·")
+                if geo.country_code or geo.country
+                else None
             )
+        status = stage_by_ip.get(ip) or "watching"
+        share = round(100.0 * count / total_hits, 1)
+        # Threat: volume + containment weight
+        volume = int(55 * (count / max_hits))
+        stage_bonus = {"blocked": 40, "rate_limited": 25, "watching": 5}.get(status, 5)
+        threat = min(100, volume + stage_bonus)
+
+        ttl_seconds = None
+        exp = expires_by_ip.get(ip)
+        if exp is not None:
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            ttl_seconds = max(0, int((exp - now).total_seconds()))
+
         top_attacking_ips.append(
             schemas.TopIP(
                 ip=ip,
                 count=count,
-                status=stage_by_ip.get(ip) or "watching",
+                status=status,
                 last_seen=last_seen.get(ip),
                 country_code=code,
                 location=loc,
                 top_user=top_user,
+                org=(geo.org if geo and geo.org else None),
+                share=share,
+                threat=threat,
+                ttl_seconds=ttl_seconds,
             )
         )
 

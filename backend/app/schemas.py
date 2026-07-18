@@ -118,6 +118,10 @@ class TopIP(BaseModel):
     country_code: str | None = None
     location: str | None = None
     top_user: str | None = None
+    org: str | None = None
+    share: float | None = None  # % of total attack hits
+    threat: int | None = None  # 0–100 composite risk
+    ttl_seconds: int | None = None  # containment remaining, if any
 
 
 class StatsOut(BaseModel):

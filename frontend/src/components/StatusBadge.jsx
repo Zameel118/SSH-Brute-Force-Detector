@@ -1,63 +1,49 @@
-/** Signal-Ops status badges + formatting helpers */
+/** Minimal status marks — colored text + live signal pip. */
 
 const STATUS_META = {
-  allowed: {
-    emoji: "✅",
-    label: "allowed",
-    className: "bg-signal-ok/20 text-signal-ok",
-  },
-  alert: {
-    emoji: "⚠️",
-    label: "alert",
-    className: "bg-signal-alert/20 text-signal-alert",
-  },
-  rate_limited: {
-    emoji: "⏳",
-    label: "rate limited",
-    className: "bg-signal-alert/20 text-signal-alert",
-  },
-  blocked: {
-    emoji: "🚫",
-    label: "blocked",
-    className: "bg-signal-danger/20 text-signal-danger",
-  },
-  watching: {
-    emoji: "👁",
-    label: "watching",
-    className: "bg-steel/20 text-steel",
-  },
-  unblocked: {
-    emoji: "🔓",
-    label: "unblocked",
-    className: "bg-chalk-muted/15 text-chalk-muted",
-  },
+  allowed: { label: "Allowed", tone: "ok", live: false },
+  alert: { label: "Alert", tone: "warn", live: true },
+  rate_limited: { label: "Rate limited", tone: "blue", live: true },
+  blocked: { label: "Blocked", tone: "danger", live: true },
+  watching: { label: "Watching", tone: "steel", live: false },
+  unblocked: { label: "Unblocked", tone: "muted", live: false },
 };
 
-export function StatusBadge({ status }) {
+export function StatusBadge({ status, compact = false }) {
   const meta = STATUS_META[status] || {
-    emoji: "•",
-    label: (status || "unknown").replace(/_/g, " "),
-    className: "bg-chalk-muted/15 text-chalk-muted",
+    label: (status || "Unknown").replace(/_/g, " "),
+    tone: "muted",
+    live: false,
   };
+  const label =
+    compact && status === "rate_limited" ? "Rate ltd" : meta.label;
   return (
     <span
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-2xs font-mono font-medium uppercase tracking-wider whitespace-nowrap ${meta.className}`}
+      className={`status-mark status-mark--${meta.tone}${meta.live ? " status-mark--live" : ""}`}
+      title={meta.label}
     >
-      <span className="text-[0.8em] leading-none" aria-hidden>
-        {meta.emoji}
-      </span>
-      {meta.label}
+      <span className="status-mark__pip" aria-hidden />
+      {label}
     </span>
   );
 }
 
-/** Regional indicator flag from ISO country code (e.g. BR → 🇧🇷). */
-export function flagEmoji(countryCode) {
-  if (!countryCode || countryCode.length !== 2) return "🌐";
-  const cc = countryCode.toUpperCase();
-  if (cc === "XX" || cc === "LAN") return "🏠";
-  const A = 0x1f1e6;
-  return String.fromCodePoint(...[...cc].map((c) => A + c.charCodeAt(0) - 65));
+/** Clean country label without duplicated country codes. */
+export function formatLocation(code, location, fallbackLabel) {
+  const cc = (code || "").toUpperCase();
+  const raw = location || fallbackLabel || "";
+  if (!raw && !cc) return { code: "", text: "—" };
+  let text = raw
+    .replace(/^[A-Z]{2}\s*[-·–—]\s*/i, "")
+    .replace(new RegExp(`^${cc}\\s+`, "i"), "")
+    .trim();
+  if (!text || text.toUpperCase() === cc) text = raw || cc || "—";
+  return { code: cc, text };
+}
+
+export function formatEventType(type) {
+  if (!type) return "—";
+  return String(type).replace(/_/g, " ");
 }
 
 export function formatTime(iso) {
@@ -72,7 +58,6 @@ export function formatTime(iso) {
   });
 }
 
-/** Compact clock for dense feed columns (avoids horizontal overflow). */
 export function formatTimeShort(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -83,7 +68,6 @@ export function formatTimeShort(iso) {
   });
 }
 
-/** Relative "2m ago" / "1h ago" for last-seen columns. */
 export function formatRelative(iso) {
   if (!iso) return "—";
   const t = new Date(iso).getTime();
@@ -108,7 +92,6 @@ export function formatAction(action) {
   return action.replace(/_/g, " ");
 }
 
-/** True if event timestamp is within the last `ms` milliseconds */
 export function isRecent(iso, ms = 8000) {
   if (!iso) return false;
   const t = new Date(iso).getTime();
