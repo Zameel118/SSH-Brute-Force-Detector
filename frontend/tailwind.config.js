@@ -1,7 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 /**
- * Signal-Ops Console design tokens.
- * Phosphor amber for live signal; steel for neutral data; sharp panels.
+ * Colors resolve from CSS variables so dark/light themes stay in sync.
  */
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
@@ -9,42 +8,42 @@ export default {
     extend: {
       colors: {
         ink: {
-          DEFAULT: "#0B0D10",
-          panel: "#14171C",
-          edge: "#1E2329",
-          line: "#2A3038",
+          DEFAULT: "var(--ink)",
+          panel: "var(--panel)",
+          edge: "var(--panel-edge)",
+          line: "var(--hairline)",
         },
         phosphor: {
-          DEFAULT: "#FFB300",
-          dim: "#C48A00",
-          glow: "rgba(255, 179, 0, 0.15)",
+          DEFAULT: "var(--phosphor)",
+          dim: "var(--phosphor-dim)",
+          on: "var(--on-phosphor)",
+          glow: "var(--phosphor-glow)",
         },
         steel: {
-          DEFAULT: "#5B7C99",
-          muted: "#3D556B",
+          DEFAULT: "var(--steel)",
+          muted: "var(--steel-muted)",
         },
         signal: {
-          ok: "#6B9E78",
-          alert: "#F5A623",
-          danger: "#E5484D",
+          ok: "var(--ok)",
+          alert: "var(--alert)",
+          danger: "var(--danger)",
         },
         chalk: {
-          DEFAULT: "#C8CDD4",
-          muted: "#6E7681",
-          faint: "#4A5058",
+          DEFAULT: "var(--text)",
+          muted: "var(--muted)",
+          faint: "var(--faint)",
         },
-        // Back-compat aliases used while components are migrated
         surface: {
-          DEFAULT: "#0B0D10",
-          raised: "#14171C",
-          border: "#2A3038",
+          DEFAULT: "var(--ink)",
+          raised: "var(--panel)",
+          border: "var(--hairline)",
         },
         accent: {
-          green: "#6B9E78",
-          yellow: "#F5A623",
-          orange: "#F5A623",
-          red: "#E5484D",
-          cyan: "#FFB300",
+          green: "var(--ok)",
+          yellow: "var(--alert)",
+          orange: "var(--alert)",
+          red: "var(--danger)",
+          cyan: "var(--phosphor)",
         },
       },
       fontFamily: {
@@ -53,6 +52,10 @@ export default {
       },
       fontSize: {
         "2xs": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0.06em" }],
+      },
+      maxWidth: {
+        console: "100%",
+        "console-pad": "1920px",
       },
       borderRadius: {
         none: "0",
@@ -64,8 +67,8 @@ export default {
         "2xl": "2px",
       },
       boxShadow: {
-        panel: "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(0,0,0,0.35)",
-        inset: "inset 0 1px 2px rgba(0,0,0,0.45)",
+        panel: "var(--panel-shadow)",
+        inset: "inset 0 1px 2px rgba(0,0,0,0.12)",
         none: "none",
       },
       keyframes: {
@@ -77,12 +80,17 @@ export default {
         },
         "row-pulse": {
           "0%, 100%": { backgroundColor: "transparent" },
-          "40%": { backgroundColor: "rgba(255, 179, 0, 0.08)" },
+          "40%": { backgroundColor: "var(--phosphor-glow)" },
+        },
+        "signal-pulse": {
+          "0%, 100%": { opacity: "0.55" },
+          "50%": { opacity: "1" },
         },
       },
       animation: {
         "radar-sweep": "radar-sweep 4.5s ease-in-out infinite",
         "row-pulse": "row-pulse 1.2s ease-out 1",
+        "signal-pulse": "signal-pulse 1.6s ease-in-out infinite",
       },
     },
   },

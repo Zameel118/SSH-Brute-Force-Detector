@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  CircleHelp,
   Download,
   FileText,
   KeyRound,
@@ -14,10 +15,32 @@ import AttackMap from "./components/AttackMap";
 import BlockedPanel from "./components/BlockedPanel";
 import EventFeed from "./components/EventFeed";
 import IPListManager from "./components/IPListManager";
+import LiveActivityBar from "./components/LiveActivityBar";
 import StatsCharts from "./components/StatsCharts";
+import TourGuide, { shouldAutoShowTour } from "./components/TourGuide";
 
 const MAX_EVENTS = 150;
 const THEME_KEY = "ssh_detector_theme";
+const SOUND_KEY = "ssh_detector_sound";
+
+function playAlertTone() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.value = 880;
+    gain.gain.value = 0.04;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.stop(ctx.currentTime + 0.2);
+    setTimeout(() => ctx.close(), 300);
+  } catch {
+    /* audio blocked */
+  }
+}
 
 export default function App() {
   const [config, setConfig] = useState(null);
@@ -39,17 +62,46 @@ export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "dark");
   const [apiKeyInput, setApiKeyInput] = useState(() => localStorage.getItem("ssh_detector_api_key") || "");
   const [showAuth, setShowAuth] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [soundOn, setSoundOn] = useState(() => localStorage.getItem(SOUND_KEY) === "1");
+  const [statFlash, setStatFlash] = useState(false);
   const wsRef = useRef(null);
+  const simulateRef = useRef(null);
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
+  useEffect(() => {
+    localStorage.setItem(SOUND_KEY, soundOn ? "1" : "0");
+  }, [soundOn]);
+
+  useEffect(() => {
+    if (shouldAutoShowTour()) {
+      const t = setTimeout(() => setTourOpen(true), 700);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, []);
+
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(""), 3500);
   };
+
+  const copyIp = useCallback(
+    async (ip) => {
+      if (!ip) return;
+      try {
+        await navigator.clipboard.writeText(ip);
+        showToast(`Copied ${ip}`);
+      } catch {
+        showToast("Copy failed");
+      }
+    },
+    []
+  );
 
   const refreshGeo = useCallback(async () => {
     try {
@@ -130,6 +182,12 @@ export default function App() {
               if (prev.some((e) => e.id === payload.data.id)) return prev;
               return [payload.data, ...prev].slice(0, MAX_EVENTS);
             });
+            setStatFlash(true);
+            setTimeout(() => setStatFlash(false), 600);
+
+            if (payload.data.event_type === "block" && localStorage.getItem(SOUND_KEY) === "1") {
+              playAlertTone();
+            }
             if (
               ["alert", "block", "rate_limit", "failed_password", "invalid_user", "unblock"].includes(
                 payload.data.event_type
@@ -172,6 +230,18 @@ export default function App() {
       showToast(err.message || "Simulation failed");
     } finally {
       setSimulating(false);
+    }
+  }
+
+  simulateRef.current = handleSimulate;
+
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    const apply = () => setTheme(next);
+    if (document.startViewTransition) {
+      document.startViewTransition(apply);
+    } else {
+      apply();
     }
   }
 
@@ -240,30 +310,61 @@ export default function App() {
     loadInitial();
   }
 
+  // Keyboard shortcuts: ? help, S simulate, C copy latest IP
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = (e.target?.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || e.target?.isContentEditable) return;
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setTourOpen(true);
+      }
+      if (e.key === "s" || e.key === "S") {
+        if (!e.metaKey && !e.ctrlKey) {
+          e.preventDefault();
+          simulateRef.current?.();
+        }
+      }
+      if (e.key === "c" || e.key === "C") {
+        if (!e.metaKey && !e.ctrlKey) {
+          e.preventDefault();
+          const ip = events[0]?.source_ip;
+          if (ip) copyIp(ip);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [events, copyIp]);
+
   const isLive = config?.mode === "live";
   const wsLive = wsStatus === "connected";
 
   return (
     <div className="min-h-screen bg-scope-grid">
-      {/* Console header bar */}
       <header className="sticky top-0 z-20 border-b border-ink-line bg-ink-panel/95 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-col gap-3">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
+        <div className="console-shell py-4 flex flex-col gap-3">
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+            <div className="min-w-0" data-tour="brand">
+              <div className="flex items-center gap-2 mb-1">
                 <Radio className="w-4 h-4 text-phosphor shrink-0" strokeWidth={1.75} aria-hidden />
                 <span className="text-2xs font-sans font-semibold uppercase tracking-[0.18em] text-chalk-muted">
                   Signal-Ops Console
                 </span>
+                <span className={`live-dot ${wsLive ? "live-dot-on" : "live-dot-off"}`} title={`WS ${wsStatus}`} />
               </div>
-              <h1 className="text-lg sm:text-xl font-sans font-bold tracking-tight text-chalk truncate">
+              <h1 className="text-xl sm:text-2xl font-sans font-bold tracking-tight text-chalk truncate">
                 SSH Brute Force Detector
               </h1>
-              <p className="text-2xs font-mono text-chalk-muted mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <p className="text-2xs font-mono text-chalk-muted mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 <span>AUTH LOG MONITOR</span>
                 <span className="text-chalk-faint">/</span>
                 <span className={wsLive ? "text-phosphor" : "text-signal-alert"}>
                   WS {wsStatus.toUpperCase()}
+                </span>
+                <span className="text-chalk-faint hidden md:inline">·</span>
+                <span className="text-chalk-faint hidden md:inline normal-case tracking-normal">
+                  ? help · S simulate · C copy IP
                 </span>
               </p>
             </div>
@@ -271,7 +372,19 @@ export default function App() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                data-tour="help"
+                onClick={() => setTourOpen(true)}
+                className="btn-console gap-1.5"
+                title="Open guide (?)"
+                aria-label="Open tour guide"
+              >
+                <CircleHelp className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
+                Help
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleTheme}
                 className="btn-console"
                 title="Toggle theme"
                 aria-label="Toggle theme"
@@ -292,16 +405,15 @@ export default function App() {
                 Key
               </button>
 
-              {/* Mode switch — sharp instrument toggle */}
-              <div className="flex items-stretch border border-ink-line bg-ink-edge">
+              <div data-tour="mode" className="flex items-stretch border border-ink-line bg-ink-edge">
                 <button
                   type="button"
                   onClick={() => {
                     if (isLive) handleModeToggle();
                   }}
-                  className={`px-3 py-2 text-2xs font-sans font-semibold uppercase tracking-wider ${
+                  className={`px-3.5 py-2 text-2xs font-sans font-semibold uppercase tracking-wider ${
                     !isLive
-                      ? "bg-phosphor text-ink"
+                      ? "bg-phosphor text-phosphor-on"
                       : "text-chalk-muted hover:text-chalk"
                   }`}
                 >
@@ -312,9 +424,9 @@ export default function App() {
                   onClick={() => {
                     if (!isLive) handleModeToggle();
                   }}
-                  className={`px-3 py-2 text-2xs font-sans font-semibold uppercase tracking-wider border-l border-ink-line ${
+                  className={`px-3.5 py-2 text-2xs font-sans font-semibold uppercase tracking-wider border-l border-ink-line ${
                     isLive
-                      ? "bg-signal-danger text-chalk"
+                      ? "bg-signal-danger text-white"
                       : "text-chalk-muted hover:text-chalk"
                   }`}
                 >
@@ -334,9 +446,10 @@ export default function App() {
 
               <button
                 type="button"
+                data-tour="simulate"
                 onClick={handleSimulate}
                 disabled={simulating}
-                className="btn-console btn-console-primary gap-1.5"
+                className={`btn-console btn-console-primary gap-1.5 ${simulating ? "animate-pulse" : ""}`}
               >
                 <Zap className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
                 {simulating ? "Injecting…" : "Simulate"}
@@ -362,15 +475,27 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-4 py-5 space-y-0">
+      <main className="console-shell py-6">
         {error && (
-          <div className="mb-4 border border-signal-danger/50 bg-signal-danger/10 px-4 py-3 text-sm text-signal-danger font-mono">
+          <div className="mb-5 border border-signal-danger/50 bg-signal-danger/10 px-4 py-3 text-sm text-signal-danger font-mono">
             {error}
           </div>
         )}
 
-        {/* Stat strip — hairline grid, not soft cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 border border-ink-line mb-4">
+        <LiveActivityBar
+          events={events}
+          wsStatus={wsStatus}
+          soundOn={soundOn}
+          onToggleSound={() => setSoundOn((v) => !v)}
+          onCopyIp={copyIp}
+        />
+
+        <div
+          data-tour="stats"
+          className={`grid grid-cols-2 lg:grid-cols-4 border border-ink-line mb-5 transition-shadow ${
+            statFlash ? "live-hot" : ""
+          }`}
+        >
           {[
             { label: "Events", value: stats?.total_events ?? "—", color: "text-chalk" },
             { label: "Alerts", value: stats?.total_alerts ?? "—", color: "text-signal-alert" },
@@ -379,14 +504,18 @@ export default function App() {
           ].map((s, i) => (
             <div
               key={s.label}
-              className={`bg-ink-panel px-4 py-3 ${
-                i > 0 ? "border-l border-ink-line" : ""
-              } ${i >= 2 ? "border-t sm:border-t-0 border-ink-line" : ""}`}
+              className={[
+                "bg-ink-panel px-5 py-4",
+                i % 2 === 1 ? "border-l border-ink-line" : "",
+                i >= 2 ? "border-t border-ink-line" : "",
+                i > 0 ? "lg:border-l lg:border-ink-line" : "",
+                i >= 2 ? "lg:border-t-0" : "",
+              ].join(" ")}
             >
               <div className="text-2xs uppercase tracking-[0.14em] text-chalk-muted font-sans">
                 {s.label}
               </div>
-              <div className={`text-2xl font-semibold mt-1 font-mono tabular-nums ${s.color}`}>
+              <div className={`text-3xl font-semibold mt-1.5 font-mono tabular-nums stat-value ${s.color} ${statFlash ? "is-flash" : ""}`}>
                 {s.value}
               </div>
             </div>
@@ -394,7 +523,7 @@ export default function App() {
         </div>
 
         {config && (
-          <p className="text-2xs text-chalk-muted font-mono mb-4 leading-relaxed">
+          <p className="text-xs text-chalk-muted font-mono mb-4 leading-relaxed">
             WATCH {config.log_path}
             <span className="text-chalk-faint"> · </span>
             THR alert/{config.alert_threshold} → rate/{config.rate_limit_threshold} → block/
@@ -404,8 +533,10 @@ export default function App() {
           </p>
         )}
 
-        {/* Export / replay toolbar */}
-        <div className="flex flex-wrap gap-2 items-center mb-4 pb-4 border-b border-ink-line">
+        <div
+          data-tour="toolbar"
+          className="flex flex-wrap gap-2 items-center mb-5 pb-5 border-b border-ink-line"
+        >
           <a href={api.exportCsvUrl()} className="btn-console gap-1.5 no-underline">
             <Download className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
             CSV
@@ -444,22 +575,29 @@ export default function App() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-          <div className="lg:col-span-2">
-            <EventFeed events={events} geoMap={geoMap} />
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-5">
+          <div className="xl:col-span-2 min-w-0" data-tour="feed">
+            <EventFeed events={events} geoMap={geoMap} onCopyIp={copyIp} />
           </div>
-          <BlockedPanel blocked={blocked} onUnblock={handleUnblock} busyIp={busyIp} />
+          <div data-tour="blocked">
+            <BlockedPanel
+              blocked={blocked}
+              onUnblock={handleUnblock}
+              busyIp={busyIp}
+              onCopyIp={copyIp}
+            />
+          </div>
         </div>
 
-        <div className="mb-4">
-          <AttackMap attackers={attackers} />
+        <div className="mb-5" data-tour="map">
+          <AttackMap attackers={attackers} theme={theme} />
         </div>
 
-        <div className="mb-4">
-          <StatsCharts stats={stats} />
+        <div className="mb-5">
+          <StatsCharts stats={stats} theme={theme} onCopyIp={copyIp} geoMap={geoMap} />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div data-tour="lists" className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-10">
           <IPListManager
             title="Whitelist — never block"
             items={whitelist}
@@ -494,6 +632,16 @@ export default function App() {
           {toast}
         </div>
       )}
+
+      <TourGuide
+        open={tourOpen}
+        onClose={() => setTourOpen(false)}
+        onAction={async (action) => {
+          if (action.type === "simulate") {
+            await handleSimulate();
+          }
+        }}
+      />
     </div>
   );
 }

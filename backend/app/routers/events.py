@@ -35,39 +35,115 @@ def get_stats(db: Session = Depends(get_db)):
         db.query(models.BlockedIP).filter(models.BlockedIP.is_active.is_(True)).count()
     )
 
-    # Attacks over time: bucket failed attempts into hourly bins for last 24h
-    failures = (
+    # Hourly chart — last 24h only
+    recent = (
         db.query(models.Event)
         .filter(
-            models.Event.event_type.in_(["failed_password", "invalid_user", "alert", "block", "rate_limit"]),
+            models.Event.event_type.in_(
+                ["failed_password", "invalid_user", "alert", "block", "rate_limit"]
+            ),
             models.Event.timestamp >= since,
         )
         .all()
     )
 
     hourly: dict[str, int] = defaultdict(int)
-    # Pre-fill last 24 hours so the chart has a continuous X axis
     for i in range(24):
         bucket = (now - timedelta(hours=23 - i)).strftime("%Y-%m-%d %H:00")
         hourly[bucket] = 0
 
-    ip_counter: Counter[str] = Counter()
-    for ev in failures:
+    for ev in recent:
         ts = ev.timestamp
         if ts.tzinfo is None:
             ts = ts.replace(tzinfo=timezone.utc)
         bucket = ts.strftime("%Y-%m-%d %H:00")
         if bucket in hourly:
             hourly[bucket] += 1
-        if ev.event_type in ("failed_password", "invalid_user"):
-            ip_counter[ev.source_ip] += 1
+
+    # Top attacking IPs — failure counts + active containment
+    ip_counter: Counter[str] = Counter()
+    last_seen: dict[str, datetime] = {}
+    user_counter: dict[str, Counter[str]] = defaultdict(Counter)
+
+    def _note_ts(ip: str, ts: datetime | None) -> None:
+        if not ts:
+            return
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        prev = last_seen.get(ip)
+        if prev is None or ts > prev:
+            last_seen[ip] = ts
+
+    failures = (
+        db.query(models.Event)
+        .filter(models.Event.event_type.in_(["failed_password", "invalid_user"]))
+        .all()
+    )
+    for ev in failures:
+        ip_counter[ev.source_ip] += 1
+        _note_ts(ev.source_ip, ev.timestamp)
+        if ev.username:
+            user_counter[ev.source_ip][ev.username] += 1
+
+    for ev in (
+        db.query(models.Event)
+        .filter(models.Event.event_type.in_(["alert", "rate_limit", "block"]))
+        .all()
+    ):
+        if ev.source_ip not in ip_counter:
+            ip_counter[ev.source_ip] = max(ev.attempt_count or 1, 1)
+        _note_ts(ev.source_ip, ev.timestamp)
+        if ev.username:
+            user_counter[ev.source_ip][ev.username] += 1
+
+    active = (
+        db.query(models.BlockedIP).filter(models.BlockedIP.is_active.is_(True)).all()
+    )
+    for row in active:
+        if row.ip_address not in ip_counter or ip_counter[row.ip_address] < (row.attempt_count or 1):
+            ip_counter[row.ip_address] = max(
+                ip_counter.get(row.ip_address, 0), row.attempt_count or 1
+            )
+        _note_ts(row.ip_address, row.blocked_at)
+
+    stage_by_ip = {row.ip_address: row.stage for row in active}
+    top_pairs = ip_counter.most_common(15)
+    top_ips = [ip for ip, _ in top_pairs]
+
+    geo_by_ip: dict[str, models.GeoCache] = {}
+    if top_ips:
+        for row in (
+            db.query(models.GeoCache)
+            .filter(models.GeoCache.ip_address.in_(top_ips))
+            .all()
+        ):
+            geo_by_ip[row.ip_address] = row
 
     attacks_over_time = [
         schemas.AttackPoint(time=k, count=v) for k, v in sorted(hourly.items())
     ]
-    top_attacking_ips = [
-        schemas.TopIP(ip=ip, count=count) for ip, count in ip_counter.most_common(10)
-    ]
+    top_attacking_ips: list[schemas.TopIP] = []
+    for ip, count in top_pairs:
+        geo = geo_by_ip.get(ip)
+        users = user_counter.get(ip)
+        top_user = users.most_common(1)[0][0] if users else None
+        code = (geo.country_code if geo else None) or None
+        loc = None
+        if geo:
+            loc = geo.raw_label or (
+                f"{geo.country_code} · {geo.country}".strip(" ·") if geo.country_code or geo.country else None
+            )
+        top_attacking_ips.append(
+            schemas.TopIP(
+                ip=ip,
+                count=count,
+                status=stage_by_ip.get(ip) or "watching",
+                last_seen=last_seen.get(ip),
+                country_code=code,
+                location=loc,
+                top_user=top_user,
+            )
+        )
 
     return schemas.StatsOut(
         total_events=total_events,

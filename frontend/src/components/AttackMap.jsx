@@ -2,10 +2,13 @@ import { Globe2 } from "lucide-react";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
-export default function AttackMap({ attackers = [] }) {
+export default function AttackMap({ attackers = [], theme = "dark" }) {
   const points = attackers.filter(
     (a) => a.latitude != null && a.longitude != null && !Number.isNaN(a.latitude)
   );
+  const isLight = theme === "light";
+  const pinStroke = isLight ? "#0F766E" : "#FFB300";
+  const pinFill = isLight ? "#B91C1C" : "#E5484D";
 
   return (
     <section className="panel overflow-hidden">
@@ -18,7 +21,7 @@ export default function AttackMap({ attackers = [] }) {
           {points.length} pins
         </span>
       </div>
-      <div className="h-72 relative z-0 border-t border-ink-line">
+      <div className="h-80 relative z-0 border-t border-ink-line">
         {points.length === 0 ? (
           <div className="h-full flex items-center justify-center text-sm text-chalk-muted bg-ink-edge">
             Awaiting geolocated signal — simulate or replay a sample
@@ -42,8 +45,8 @@ export default function AttackMap({ attackers = [] }) {
                 center={[p.latitude, p.longitude]}
                 radius={Math.min(5 + Math.log2((p.attack_count || 1) + 1) * 2.5, 16)}
                 pathOptions={{
-                  color: "#FFB300",
-                  fillColor: "#E5484D",
+                  color: pinStroke,
+                  fillColor: pinFill,
                   fillOpacity: 0.75,
                   weight: 1,
                 }}

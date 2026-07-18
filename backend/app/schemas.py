@@ -113,6 +113,11 @@ class AttackPoint(BaseModel):
 class TopIP(BaseModel):
     ip: str
     count: int
+    status: str | None = None  # blocked | rate_limited | watching
+    last_seen: datetime | None = None
+    country_code: str | None = None
+    location: str | None = None
+    top_user: str | None = None
 
 
 class StatsOut(BaseModel):

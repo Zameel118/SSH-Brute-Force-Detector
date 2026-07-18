@@ -3,6 +3,8 @@ Demo utilities: reset demo state, replay sample attack logs, fail2ban export.
 """
 from __future__ import annotations
 
+import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
@@ -19,6 +21,12 @@ router = APIRouter(prefix="/api", tags=["demo"])
 
 # backend/samples — two parents up from app/routers/demo.py is the backend root
 SAMPLES_DIR = Path(__file__).resolve().parents[2] / "samples"
+_SYSLOG_STAMP = re.compile(r"^([A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})")
+
+
+def _syslog_stamp(dt: datetime) -> str:
+    return f"{dt.strftime('%b')} {dt.day:2d} {dt.strftime('%H:%M:%S')}"
+
 
 class ResetResponse(BaseModel):
     message: str
@@ -116,14 +124,27 @@ async def replay_sample(body: ReplayRequest, request: Request):
     ensure_log_file(settings.simulated_log_path)
     content = src.read_text(encoding="utf-8")
     lines = [ln for ln in content.splitlines() if ln.strip()]
+
+    # Rewrite syslog stamps to "now" so sample replays show up in live charts/stats
+    # instead of falling outside the 24h window with their original demo dates.
+    base = datetime.now(timezone.utc)
+    rewritten: list[str] = []
+    for i, line in enumerate(lines):
+        when = base - timedelta(seconds=max(0, len(lines) - i - 1) * 2)
+        stamp = _syslog_stamp(when)
+        if _SYSLOG_STAMP.match(line):
+            rewritten.append(_SYSLOG_STAMP.sub(stamp, line, count=1))
+        else:
+            rewritten.append(line)
+
     with open(settings.simulated_log_path, "a", encoding="utf-8") as f:
-        for line in lines:
+        for line in rewritten:
             f.write(line + "\n")
         f.flush()
 
     return ReplayResponse(
-        message=f"Replaying {body.sample} ({len(lines)} lines)",
-        lines_appended=len(lines),
+        message=f"Replaying {body.sample} ({len(rewritten)} lines)",
+        lines_appended=len(rewritten),
         sample=body.sample,
     )
 
