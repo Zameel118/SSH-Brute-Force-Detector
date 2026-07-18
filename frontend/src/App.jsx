@@ -1,4 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Download,
+  FileText,
+  KeyRound,
+  Moon,
+  Radio,
+  RotateCcw,
+  Sun,
+  Zap,
+} from "lucide-react";
 import { api, getWsUrl } from "./api";
 import AttackMap from "./components/AttackMap";
 import BlockedPanel from "./components/BlockedPanel";
@@ -231,94 +241,120 @@ export default function App() {
   }
 
   const isLive = config?.mode === "live";
+  const wsLive = wsStatus === "connected";
 
   return (
-    <div className="min-h-screen bg-grid transition-colors">
-      <header className="border-b border-surface-border/80 bg-surface/80 backdrop-blur sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white light:text-slate-900">
+    <div className="min-h-screen bg-scope-grid">
+      {/* Console header bar */}
+      <header className="sticky top-0 z-20 border-b border-ink-line bg-ink-panel/95 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-col gap-3">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <Radio className="w-4 h-4 text-phosphor shrink-0" strokeWidth={1.75} aria-hidden />
+                <span className="text-2xs font-sans font-semibold uppercase tracking-[0.18em] text-chalk-muted">
+                  Signal-Ops Console
+                </span>
+              </div>
+              <h1 className="text-lg sm:text-xl font-sans font-bold tracking-tight text-chalk truncate">
                 SSH Brute Force Detector
               </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Log monitoring · Escalating response ·{" "}
-                <span className={wsStatus === "connected" ? "text-accent-green" : "text-accent-yellow"}>
-                  WS {wsStatus}
+              <p className="text-2xs font-mono text-chalk-muted mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span>AUTH LOG MONITOR</span>
+                <span className="text-chalk-faint">/</span>
+                <span className={wsLive ? "text-phosphor" : "text-signal-alert"}>
+                  WS {wsStatus.toUpperCase()}
                 </span>
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <button
+                type="button"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="px-3 py-2 text-xs rounded-lg border border-surface-border bg-surface-raised hover:bg-slate-700/50 transition-colors"
+                className="btn-console"
                 title="Toggle theme"
+                aria-label="Toggle theme"
               >
-                {theme === "dark" ? "Light" : "Dark"}
-              </button>
-              <button
-                onClick={() => setShowAuth((v) => !v)}
-                className="px-3 py-2 text-xs rounded-lg border border-surface-border bg-surface-raised hover:bg-slate-700/50 transition-colors"
-              >
-                API Key
+                {theme === "dark" ? (
+                  <Sun className="w-3.5 h-3.5" strokeWidth={1.75} />
+                ) : (
+                  <Moon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                )}
               </button>
 
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-surface-border bg-surface-raised">
-                <span className={`text-xs font-medium ${!isLive ? "text-accent-cyan" : "text-slate-500"}`}>
-                  Simulation
-                </span>
+              <button
+                type="button"
+                onClick={() => setShowAuth((v) => !v)}
+                className="btn-console gap-1.5"
+              >
+                <KeyRound className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
+                Key
+              </button>
+
+              {/* Mode switch — sharp instrument toggle */}
+              <div className="flex items-stretch border border-ink-line bg-ink-edge">
                 <button
-                  onClick={handleModeToggle}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${
-                    isLive ? "bg-accent-red/80" : "bg-slate-600"
+                  type="button"
+                  onClick={() => {
+                    if (isLive) handleModeToggle();
+                  }}
+                  className={`px-3 py-2 text-2xs font-sans font-semibold uppercase tracking-wider ${
+                    !isLive
+                      ? "bg-phosphor text-ink"
+                      : "text-chalk-muted hover:text-chalk"
                   }`}
-                  aria-label="Toggle mode"
                 >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                      isLive ? "translate-x-5" : ""
-                    }`}
-                  />
+                  Sim
                 </button>
-                <span className={`text-xs font-medium ${isLive ? "text-accent-red" : "text-slate-500"}`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isLive) handleModeToggle();
+                  }}
+                  className={`px-3 py-2 text-2xs font-sans font-semibold uppercase tracking-wider border-l border-ink-line ${
+                    isLive
+                      ? "bg-signal-danger text-chalk"
+                      : "text-chalk-muted hover:text-chalk"
+                  }`}
+                >
                   Live
-                </span>
+                </button>
               </div>
 
               <button
+                type="button"
                 onClick={handleReset}
                 disabled={resetting}
-                className="px-3 py-2 rounded-lg text-sm font-medium border border-surface-border
-                           hover:border-accent-orange/50 hover:text-accent-orange disabled:opacity-60 transition-colors"
+                className="btn-console gap-1.5"
               >
-                {resetting ? "Resetting…" : "Reset Demo"}
+                <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
+                {resetting ? "…" : "Reset"}
               </button>
 
               <button
+                type="button"
                 onClick={handleSimulate}
                 disabled={simulating}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-accent-cyan text-surface
-                           hover:bg-sky-400 disabled:opacity-60 transition-colors shadow-lg shadow-sky-500/10"
+                className="btn-console btn-console-primary gap-1.5"
               >
-                {simulating ? "Simulating…" : "Simulate Attack"}
+                <Zap className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
+                {simulating ? "Injecting…" : "Simulate"}
               </button>
             </div>
           </div>
 
           {showAuth && (
-            <div className="flex flex-wrap gap-2 items-center p-3 rounded-lg border border-surface-border bg-surface-raised">
+            <div className="flex flex-wrap gap-2 items-center p-3 border border-ink-line bg-ink-edge">
               <input
                 type="password"
                 value={apiKeyInput}
                 onChange={(e) => setApiKeyInput(e.target.value)}
-                placeholder="X-API-Key (optional — leave empty if auth disabled)"
-                className="flex-1 min-w-[200px] bg-surface border border-surface-border rounded-md px-3 py-2 text-sm font-mono outline-none"
+                placeholder="X-API-Key (optional)"
+                className="flex-1 min-w-[200px] bg-ink border border-ink-line px-3 py-2 text-sm font-mono text-chalk
+                           outline-none focus:border-phosphor placeholder:text-chalk-faint"
               />
-              <button
-                onClick={saveApiKey}
-                className="px-3 py-2 text-sm rounded-md bg-slate-700 hover:bg-slate-600"
-              >
+              <button type="button" onClick={saveApiKey} className="btn-console">
                 Save
               </button>
             </div>
@@ -326,91 +362,106 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 py-5 space-y-0">
         {error && (
-          <div className="rounded-lg border border-accent-red/40 bg-accent-red/10 px-4 py-3 text-sm text-accent-red">
+          <div className="mb-4 border border-signal-danger/50 bg-signal-danger/10 px-4 py-3 text-sm text-signal-danger font-mono">
             {error}
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Stat strip — hairline grid, not soft cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 border border-ink-line mb-4">
           {[
-            { label: "Events", value: stats?.total_events ?? "—", color: "text-slate-200" },
-            { label: "Alerts", value: stats?.total_alerts ?? "—", color: "text-accent-yellow" },
-            { label: "Blocks", value: stats?.total_blocks ?? "—", color: "text-accent-red" },
-            { label: "Active Blocks", value: stats?.active_blocks ?? "—", color: "text-accent-orange" },
-          ].map((s) => (
+            { label: "Events", value: stats?.total_events ?? "—", color: "text-chalk" },
+            { label: "Alerts", value: stats?.total_alerts ?? "—", color: "text-signal-alert" },
+            { label: "Blocks", value: stats?.total_blocks ?? "—", color: "text-signal-danger" },
+            { label: "Active", value: stats?.active_blocks ?? "—", color: "text-phosphor" },
+          ].map((s, i) => (
             <div
               key={s.label}
-              className="bg-surface-raised border border-surface-border rounded-xl px-4 py-3"
+              className={`bg-ink-panel px-4 py-3 ${
+                i > 0 ? "border-l border-ink-line" : ""
+              } ${i >= 2 ? "border-t sm:border-t-0 border-ink-line" : ""}`}
             >
-              <div className="text-xs uppercase tracking-wider text-slate-500">{s.label}</div>
-              <div className={`text-2xl font-semibold mt-1 font-mono ${s.color}`}>{s.value}</div>
+              <div className="text-2xs uppercase tracking-[0.14em] text-chalk-muted font-sans">
+                {s.label}
+              </div>
+              <div className={`text-2xl font-semibold mt-1 font-mono tabular-nums ${s.color}`}>
+                {s.value}
+              </div>
             </div>
           ))}
         </div>
 
         {config && (
-          <p className="text-xs text-slate-500 font-mono">
-            Watching: {config.log_path} · thresholds alert/{config.alert_threshold} →
-            rate/{config.rate_limit_threshold} → block/{config.block_threshold} per{" "}
-            {config.time_window_minutes}m
+          <p className="text-2xs text-chalk-muted font-mono mb-4 leading-relaxed">
+            WATCH {config.log_path}
+            <span className="text-chalk-faint"> · </span>
+            THR alert/{config.alert_threshold} → rate/{config.rate_limit_threshold} → block/
+            {config.block_threshold}
+            <span className="text-chalk-faint"> · </span>
+            WIN {config.time_window_minutes}m
           </p>
         )}
 
-        {/* Export + sample replay toolbar */}
-        <div className="flex flex-wrap gap-2 items-center">
-          <a
-            href={api.exportCsvUrl()}
-            className="px-3 py-1.5 text-xs rounded-md border border-surface-border hover:border-accent-cyan/40 hover:text-accent-cyan transition-colors"
-          >
-            Export CSV
+        {/* Export / replay toolbar */}
+        <div className="flex flex-wrap gap-2 items-center mb-4 pb-4 border-b border-ink-line">
+          <a href={api.exportCsvUrl()} className="btn-console gap-1.5 no-underline">
+            <Download className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
+            CSV
           </a>
           <a
             href={api.exportReportUrl()}
             target="_blank"
             rel="noreferrer"
-            className="px-3 py-1.5 text-xs rounded-md border border-surface-border hover:border-accent-cyan/40 hover:text-accent-cyan transition-colors"
+            className="btn-console gap-1.5 no-underline"
           >
-            Incident Report (PDF)
+            <FileText className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
+            Report
           </a>
           <a
             href={api.fail2banUrl()}
             target="_blank"
             rel="noreferrer"
-            className="px-3 py-1.5 text-xs rounded-md border border-surface-border hover:border-accent-green/40 hover:text-accent-green transition-colors"
+            className="btn-console gap-1.5 no-underline"
           >
-            Export fail2ban config
+            fail2ban
           </a>
-          <span className="text-xs text-slate-500 ml-1">Replay sample:</span>
+          <span className="text-2xs text-chalk-muted uppercase tracking-wider ml-1 hidden sm:inline">
+            Replay
+          </span>
           {samples.map((s) => (
             <button
               key={s.name}
+              type="button"
               onClick={() => handleReplay(s.name)}
               disabled={!!replaying}
               title={s.description}
-              className="px-3 py-1.5 text-xs rounded-md border border-surface-border font-mono
-                         hover:border-accent-orange/40 hover:text-accent-orange disabled:opacity-50 transition-colors"
+              className="btn-console font-mono normal-case tracking-normal"
             >
-              {replaying === s.name ? "…" : s.name.replace(".log", "")}
+              {replaying === s.name ? "…" : s.name.replace(".log", "").replace("ssh_", "")}
             </button>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
           <div className="lg:col-span-2">
             <EventFeed events={events} geoMap={geoMap} />
           </div>
           <BlockedPanel blocked={blocked} onUnblock={handleUnblock} busyIp={busyIp} />
         </div>
 
-        <AttackMap attackers={attackers} />
+        <div className="mb-4">
+          <AttackMap attackers={attackers} />
+        </div>
 
-        <StatsCharts stats={stats} />
+        <div className="mb-4">
+          <StatsCharts stats={stats} />
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <IPListManager
-            title="Whitelist (never block)"
+            title="Whitelist — never block"
             items={whitelist}
             accent="green"
             onAdd={async (ip, reason) => {
@@ -423,7 +474,7 @@ export default function App() {
             }}
           />
           <IPListManager
-            title="Blacklist (block on sight)"
+            title="Blacklist — block on sight"
             items={blacklist}
             accent="red"
             onAdd={async (ip, reason) => {
@@ -439,10 +490,7 @@ export default function App() {
       </main>
 
       {toast && (
-        <div
-          className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg bg-surface-raised border border-surface-border
-                        text-sm text-slate-200 shadow-xl max-w-sm"
-        >
+        <div className="fixed bottom-5 right-5 z-50 px-4 py-3 border border-phosphor/40 bg-ink-panel text-sm font-mono text-phosphor max-w-sm">
           {toast}
         </div>
       )}

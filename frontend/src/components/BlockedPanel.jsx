@@ -1,46 +1,49 @@
+import { ShieldBan, ShieldOff } from "lucide-react";
 import { formatDuration, formatTime } from "./StatusBadge";
 
 export default function BlockedPanel({ blocked, onUnblock, busyIp }) {
   return (
-    <section className="bg-surface-raised border border-surface-border rounded-xl overflow-hidden h-full">
-      <div className="px-4 py-3 border-b border-surface-border">
-        <h2 className="text-sm font-semibold tracking-wide uppercase text-slate-300">
-          Blocked / Rate-Limited IPs
+    <section className="panel overflow-hidden h-full flex flex-col">
+      <div className="panel-header">
+        <h2 className="panel-title flex items-center gap-2">
+          <ShieldBan className="w-3.5 h-3.5 text-signal-danger" strokeWidth={1.75} aria-hidden />
+          Blocked / Rate-Limited
         </h2>
+        <span className="font-mono text-2xs text-chalk-muted tabular-nums">{blocked.length}</span>
       </div>
-      <div className="p-3 space-y-2 max-h-[360px] overflow-y-auto">
+
+      <div className="p-0 max-h-[360px] overflow-y-auto flex-1">
         {blocked.length === 0 && (
-          <p className="text-sm text-slate-500 px-1 py-4 text-center">No IPs currently blocked</p>
+          <p className="text-sm text-chalk-muted px-3 py-8 text-center">No active containment</p>
         )}
         {blocked.map((row) => (
           <div
             key={row.id}
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-surface border border-surface-border"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3 py-3 border-b border-ink-line"
           >
             <div className="min-w-0">
-              <div className="font-mono text-sm text-accent-red">{row.ip_address}</div>
-              <div className="text-xs text-slate-500 mt-0.5">
+              <div className="font-mono text-sm text-signal-danger">{row.ip_address}</div>
+              <div className="text-2xs text-chalk-muted mt-1 font-mono">
                 <span
                   className={
-                    row.stage === "blocked" ? "text-accent-red" : "text-accent-orange"
+                    row.stage === "blocked" ? "text-signal-danger" : "text-signal-alert"
                   }
                 >
                   {row.stage}
                 </span>
-                {" · "}
-                expires in {formatDuration(row.seconds_remaining)}
-                {" · "}
+                <span className="text-chalk-faint"> · </span>
+                TTL {formatDuration(row.seconds_remaining)}
+                <span className="text-chalk-faint"> · </span>
                 since {formatTime(row.blocked_at)}
               </div>
             </div>
             <button
               onClick={() => onUnblock(row.ip_address)}
               disabled={busyIp === row.ip_address}
-              className="shrink-0 px-3 py-1.5 text-xs font-medium rounded-md border border-surface-border
-                         text-slate-300 hover:bg-accent-green/10 hover:text-accent-green hover:border-accent-green/40
-                         disabled:opacity-50 transition-colors"
+              className="btn-console shrink-0 gap-1.5 hover:border-signal-ok/50 hover:text-signal-ok"
             >
-              {busyIp === row.ip_address ? "Unblocking…" : "Unblock"}
+              <ShieldOff className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
+              {busyIp === row.ip_address ? "…" : "Unblock"}
             </button>
           </div>
         ))}

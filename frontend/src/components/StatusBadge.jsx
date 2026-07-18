@@ -1,17 +1,20 @@
-/** Color / label helpers for status badges */
+/** Signal-Ops status badges + formatting helpers */
+
 const STATUS_STYLES = {
-  allowed: "bg-accent-green/15 text-accent-green border-accent-green/30",
-  alert: "bg-accent-yellow/15 text-accent-yellow border-accent-yellow/30",
-  rate_limited: "bg-accent-orange/15 text-accent-orange border-accent-orange/30",
-  blocked: "bg-accent-red/15 text-accent-red border-accent-red/30",
-  unblocked: "bg-slate-500/15 text-slate-300 border-slate-500/30",
+  allowed: "border-signal-ok/40 text-signal-ok bg-signal-ok/10",
+  alert: "border-signal-alert/40 text-signal-alert bg-signal-alert/10",
+  rate_limited: "border-signal-alert/40 text-signal-alert bg-signal-alert/10",
+  blocked: "border-signal-danger/40 text-signal-danger bg-signal-danger/10",
+  unblocked: "border-chalk-muted/40 text-chalk-muted bg-transparent",
 };
 
 export function StatusBadge({ status }) {
   const style = STATUS_STYLES[status] || STATUS_STYLES.allowed;
   const label = (status || "unknown").replace(/_/g, " ");
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium capitalize ${style}`}>
+    <span
+      className={`inline-flex items-center px-1.5 py-0.5 border text-2xs font-mono font-medium uppercase tracking-wider ${style}`}
+    >
       {label}
     </span>
   );
@@ -37,8 +40,15 @@ export function formatDuration(seconds) {
   return `${m}m`;
 }
 
-/** Format action_taken for display */
 export function formatAction(action) {
   if (!action || action === "none") return "—";
   return action.replace(/_/g, " ");
+}
+
+/** True if event timestamp is within the last `ms` milliseconds */
+export function isRecent(iso, ms = 8000) {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < ms;
 }

@@ -1,18 +1,16 @@
 import { useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
 
-/**
- * Shared whitelist / blacklist manager with add form + remove buttons.
- */
 export default function IPListManager({ title, items, onAdd, onRemove, accent = "cyan" }) {
   const [ip, setIp] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const accentClass =
+  const accentBorder =
     accent === "green"
-      ? "focus:border-accent-green/50 focus:ring-accent-green/20"
-      : "focus:border-accent-red/50 focus:ring-accent-red/20";
+      ? "focus:border-signal-ok"
+      : "focus:border-signal-danger";
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -31,55 +29,59 @@ export default function IPListManager({ title, items, onAdd, onRemove, accent = 
   }
 
   return (
-    <section className="bg-surface-raised border border-surface-border rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-surface-border">
-        <h2 className="text-sm font-semibold tracking-wide uppercase text-slate-300">{title}</h2>
+    <section className="panel overflow-hidden">
+      <div className="panel-header">
+        <h2 className="panel-title">{title}</h2>
+        <span className="font-mono text-2xs text-chalk-muted tabular-nums">{items.length}</span>
       </div>
-      <form onSubmit={handleSubmit} className="p-3 flex flex-col sm:flex-row gap-2 border-b border-surface-border">
+
+      <form
+        onSubmit={handleSubmit}
+        className="p-3 flex flex-col sm:flex-row gap-2 border-b border-ink-line bg-ink-edge/40"
+      >
         <input
           value={ip}
           onChange={(e) => setIp(e.target.value)}
           placeholder="IP address"
-          className={`flex-1 bg-surface border border-surface-border rounded-md px-3 py-2 text-sm font-mono
-                      outline-none focus:ring-2 ${accentClass}`}
+          className={`flex-1 bg-ink border border-ink-line px-3 py-2 text-sm font-mono text-chalk
+                      outline-none ${accentBorder} placeholder:text-chalk-faint`}
         />
         <input
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="Reason (optional)"
-          className="flex-1 bg-surface border border-surface-border rounded-md px-3 py-2 text-sm
-                     outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500/50"
+          className="flex-1 bg-ink border border-ink-line px-3 py-2 text-sm font-sans text-chalk
+                     outline-none focus:border-steel placeholder:text-chalk-faint"
         />
-        <button
-          type="submit"
-          disabled={busy || !ip.trim()}
-          className="px-4 py-2 text-sm font-medium rounded-md bg-slate-700 hover:bg-slate-600
-                     disabled:opacity-50 transition-colors"
-        >
+        <button type="submit" disabled={busy || !ip.trim()} className="btn-console gap-1.5">
+          <Plus className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
           Add
         </button>
       </form>
-      {error && <p className="px-3 pt-2 text-xs text-accent-red">{error}</p>}
-      <ul className="p-3 space-y-1.5 max-h-[200px] overflow-y-auto">
+
+      {error && <p className="px-3 pt-2 text-xs text-signal-danger font-mono">{error}</p>}
+
+      <ul className="max-h-[200px] overflow-y-auto">
         {items.length === 0 && (
-          <li className="text-sm text-slate-500 text-center py-3">Empty</li>
+          <li className="text-sm text-chalk-muted text-center py-6">Empty list</li>
         )}
         {items.map((row) => (
           <li
             key={row.id}
-            className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-white/[0.02]"
+            className="flex items-center justify-between gap-2 px-3 py-2 border-b border-ink-line/60 hover:bg-ink-edge/50"
           >
             <div className="min-w-0">
-              <span className="font-mono text-sm text-slate-200">{row.ip_address}</span>
+              <span className="font-mono text-sm text-chalk">{row.ip_address}</span>
               {row.reason && (
-                <span className="ml-2 text-xs text-slate-500 truncate">{row.reason}</span>
+                <span className="ml-2 text-xs text-chalk-muted truncate">{row.reason}</span>
               )}
             </div>
             <button
               onClick={() => onRemove(row.ip_address)}
-              className="text-xs text-slate-500 hover:text-accent-red transition-colors"
+              className="p-1.5 text-chalk-muted hover:text-signal-danger transition-colors"
+              aria-label={`Remove ${row.ip_address}`}
             >
-              Remove
+              <Trash2 className="w-3.5 h-3.5" strokeWidth={1.75} />
             </button>
           </li>
         ))}
