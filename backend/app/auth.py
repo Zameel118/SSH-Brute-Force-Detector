@@ -14,7 +14,16 @@ from starlette.responses import JSONResponse
 
 from app.config import get_settings
 
-PUBLIC_PATHS = {"/api/health", "/docs", "/openapi.json", "/redoc"}
+PUBLIC_PATHS = {"/api/health", "/metrics", "/docs", "/openapi.json", "/redoc"}
+
+
+def _is_public_case_read(method: str, path: str) -> bool:
+    """Shareable Case Files are readable without an API key (GET /api/cases/{id})."""
+    if method.upper() != "GET":
+        return False
+    parts = path.strip("/").split("/")
+    # api / cases / {public_id}
+    return len(parts) == 3 and parts[0] == "api" and parts[1] == "cases" and bool(parts[2])
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
@@ -30,6 +39,8 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 
         path = request.url.path
         if path in PUBLIC_PATHS or not path.startswith("/api"):
+            return await call_next(request)
+        if _is_public_case_read(request.method, path):
             return await call_next(request)
 
         provided = request.headers.get("X-API-Key") or request.query_params.get("api_key")

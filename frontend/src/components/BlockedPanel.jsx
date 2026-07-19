@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
-import { Copy, ShieldBan, ShieldOff } from "lucide-react";
+import { Copy, FolderOpen, Play, ShieldBan, ShieldOff } from "lucide-react";
 import { formatDuration, formatTime } from "./StatusBadge";
 
-export default function BlockedPanel({ blocked, onUnblock, busyIp, onCopyIp }) {
+export default function BlockedPanel({
+  blocked,
+  onUnblock,
+  busyIp,
+  onCopyIp,
+  onReplayIp,
+  onCreateCase,
+  caseBusyIp,
+}) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -31,6 +39,7 @@ export default function BlockedPanel({ blocked, onUnblock, busyIp, onCopyIp }) {
           const remaining = Number.isNaN(exp)
             ? row.seconds_remaining || 0
             : Math.max(0, Math.floor((exp - now) / 1000));
+          const caseBusy = caseBusyIp === row.ip_address;
           return (
             <div
               key={row.id}
@@ -60,14 +69,33 @@ export default function BlockedPanel({ blocked, onUnblock, busyIp, onCopyIp }) {
                   since {formatTime(row.blocked_at)}
                 </div>
               </div>
-              <button
-                onClick={() => onUnblock(row.ip_address)}
-                disabled={busyIp === row.ip_address}
-                className="btn-console shrink-0 gap-1.5 hover:border-signal-ok/50 hover:text-signal-ok"
-              >
-                <ShieldOff className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
-                {busyIp === row.ip_address ? "…" : "Unblock"}
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onReplayIp?.(row.ip_address)}
+                  className="btn-console !px-2"
+                  title="Replay session"
+                >
+                  <Play className="w-3.5 h-3.5" strokeWidth={1.75} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onCreateCase?.(row.ip_address)}
+                  disabled={caseBusy}
+                  className="btn-console !px-2"
+                  title="Create Case File"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" strokeWidth={1.75} />
+                </button>
+                <button
+                  onClick={() => onUnblock(row.ip_address)}
+                  disabled={busyIp === row.ip_address}
+                  className="btn-console gap-1.5 hover:border-signal-ok/50 hover:text-signal-ok"
+                >
+                  <ShieldOff className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
+                  {busyIp === row.ip_address ? "…" : "Unblock"}
+                </button>
+              </div>
             </div>
           );
         })}

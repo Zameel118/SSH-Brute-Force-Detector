@@ -111,3 +111,20 @@ class GeoCache(Base):
     org: Mapped[str] = mapped_column(String(256), default="")
     raw_label: Mapped[str] = mapped_column(String(256), default="")  # e.g. "RU · Russia"
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CaseFile(Base):
+    """
+    Frozen shareable snapshot of a single attacker's timeline.
+    Public read via public_id — no live WebSocket or dashboard required.
+    """
+
+    __tablename__ = "case_files"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    public_id: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+    source_ip: Mapped[str] = mapped_column(String(64), index=True)
+    title: Mapped[str] = mapped_column(String(256), default="")
+    # Full frozen JSON: geo, summary, escalation_steps, timeline
+    snapshot_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

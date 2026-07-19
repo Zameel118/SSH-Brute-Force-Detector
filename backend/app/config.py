@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     # When set, clients must send header: X-API-Key: <value>
     api_key: str = ""
 
+    # --- API write rate limiting (token bucket per client IP) ---
+    api_rate_limit_burst: int = 20          # max tokens (burst)
+    api_rate_limit_per_minute: float = 10.0  # refill rate
+
     # --- Optional SMTP email alerts (no-op if host is empty) ---
     smtp_host: str = ""
     smtp_port: int = 587

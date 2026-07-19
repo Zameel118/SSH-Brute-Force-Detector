@@ -50,6 +50,10 @@ export const api = {
   getAttackersGeo: () => request("/geo/attackers"),
   geoForIp: (ip) => request(`/geo/ip/${encodeURIComponent(ip)}`),
   health: () => request("/health"),
+  createCase: (source_ip, title = "") =>
+    request("/cases", { method: "POST", body: JSON.stringify({ source_ip, title }) }),
+  getCase: (publicId) => request(`/cases/${encodeURIComponent(publicId)}`),
+  getTimeline: (ip) => request(`/timeline/${encodeURIComponent(ip)}`),
   exportCsvUrl: () => {
     const key = localStorage.getItem("ssh_detector_api_key");
     return key ? `/api/export/events.csv?api_key=${encodeURIComponent(key)}` : "/api/export/events.csv";

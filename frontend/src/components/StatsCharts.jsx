@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, Copy, Crosshair, Shield } from "lucide-react";
+import { Activity, Copy, Crosshair, FolderOpen, Play, Shield } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -29,7 +29,15 @@ const CONTAINMENT_COLORS = {
 /**
  * Dual charts + polished Top Attacking IPs table.
  */
-export default function StatsCharts({ stats, theme = "dark", onCopyIp, geoMap = {} }) {
+export default function StatsCharts({
+  stats,
+  theme = "dark",
+  onCopyIp,
+  geoMap = {},
+  onReplayIp,
+  onCreateCase,
+  caseBusyIp,
+}) {
   const overTime = stats?.attacks_over_time || [];
   const topIps = stats?.top_attacking_ips || [];
   const isLight = theme === "light";
@@ -237,7 +245,7 @@ export default function StatsCharts({ stats, theme = "dark", onCopyIp, geoMap = 
           </div>
         ) : (
           <div className="feed-scroll max-h-[22rem] overflow-x-auto">
-            <table className="feed-table top-ip-table w-full min-w-[920px]">
+            <table className="feed-table top-ip-table w-full min-w-[1000px]">
               <thead className="sticky top-0 z-[1] bg-ink-edge text-left text-2xs uppercase tracking-widest text-chalk-muted border-b border-ink-line">
                 <tr>
                   <th className="px-3 py-2.5 font-sans font-medium w-12">#</th>
@@ -250,6 +258,7 @@ export default function StatsCharts({ stats, theme = "dark", onCopyIp, geoMap = 
                   <th className="px-3 py-2.5 font-sans font-medium">TTL</th>
                   <th className="px-3 py-2.5 font-sans font-medium hidden xl:table-cell">Last seen</th>
                   <th className="px-3 py-2.5 font-sans font-medium">Status</th>
+                  <th className="px-3 py-2.5 font-sans font-medium">Case</th>
                 </tr>
               </thead>
               <tbody>
@@ -267,6 +276,7 @@ export default function StatsCharts({ stats, theme = "dark", onCopyIp, geoMap = 
                   const isLead = i === 0;
                   const threatHigh = threat >= 75;
                   const ttlCritical = ttl != null && ttl > 0 && ttl < 3600;
+                  const busy = caseBusyIp === row.ip;
 
                   return (
                     <tr key={row.ip} className="top-ip-row border-b border-ink-line/60 group">
@@ -366,6 +376,27 @@ export default function StatsCharts({ stats, theme = "dark", onCopyIp, geoMap = 
                       </td>
                       <td className="px-3 py-2.5">
                         <StatusBadge status={row.status || "watching"} compact />
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            className="btn-console !px-2 !py-1"
+                            title="Replay session"
+                            onClick={() => onReplayIp?.(row.ip)}
+                          >
+                            <Play className="w-3 h-3" strokeWidth={1.75} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-console !px-2 !py-1"
+                            title="Create Case File"
+                            disabled={busy}
+                            onClick={() => onCreateCase?.(row.ip)}
+                          >
+                            <FolderOpen className="w-3 h-3" strokeWidth={1.75} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

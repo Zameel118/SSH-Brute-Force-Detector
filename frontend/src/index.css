@@ -975,3 +975,83 @@ html.light .recharts-tooltip-item-list .recharts-tooltip-item-value {
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* —— Session replay scrubber —— */
+.replay-range {
+  width: 100%;
+  height: 6px;
+  appearance: none;
+  background: var(--hairline);
+  outline: none;
+  cursor: pointer;
+}
+.replay-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--phosphor);
+  border: 1px solid color-mix(in srgb, var(--phosphor) 40%, #000);
+  box-shadow: 0 0 10px var(--phosphor-glow);
+  cursor: pointer;
+}
+.replay-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--phosphor);
+  border: 1px solid color-mix(in srgb, var(--phosphor) 40%, #000);
+  border-radius: 0;
+  cursor: pointer;
+}
+.replay-stage-rail {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+.replay-stage-rail__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  opacity: 0.35;
+}
+.replay-stage-rail__step.is-reached {
+  opacity: 0.85;
+}
+.replay-stage-rail__step.is-active {
+  opacity: 1;
+}
+.replay-stage-rail__dot {
+  width: 8px;
+  height: 8px;
+  background: var(--muted);
+  box-shadow: none;
+}
+.replay-stage-rail__step.is-reached .replay-stage-rail__dot {
+  background: var(--steel, #5b7c99);
+}
+.replay-stage-rail__step.is-active .replay-stage-rail__dot {
+  background: var(--phosphor);
+  box-shadow: 0 0 10px var(--phosphor-glow);
+}
+.replay-stage-rail__label {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-align: center;
+}
+.replay-stage-rail__step.is-active .replay-stage-rail__label {
+  color: var(--phosphor);
+}
+.replay-row-current {
+  background: color-mix(in srgb, var(--phosphor) 10%, transparent);
+  box-shadow: inset 3px 0 0 var(--phosphor);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .replay-stage-rail__step.is-active .replay-stage-rail__dot {
+    box-shadow: none;
+  }
+}
+

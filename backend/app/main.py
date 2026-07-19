@@ -22,12 +22,15 @@ from app.database import SessionLocal, init_db
 from app.detection import DetectionEngine
 from app.escalation import EscalationService
 from app.firewall import FirewallManager
+from app.rate_limit import RateLimitMiddleware
+from app.routers import cases as cases_router
 from app.routers import config as config_router
 from app.routers import demo as demo_router
 from app.routers import events as events_router
 from app.routers import export as export_router
 from app.routers import geo as geo_router
 from app.routers import ips as ips_router
+from app.routers import metrics as metrics_router
 from app.routers import simulation as simulation_router
 from app.simulator import ensure_log_file, seed_background_noise
 from app.tailer import LogTailer
@@ -134,6 +137,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(APIKeyMiddleware)
+app.add_middleware(
+    RateLimitMiddleware,
+    capacity=float(settings.api_rate_limit_burst),
+    refill_per_minute=float(settings.api_rate_limit_per_minute),
+)
 
 app.include_router(events_router.router)
 app.include_router(ips_router.router)
@@ -142,6 +150,8 @@ app.include_router(simulation_router.router)
 app.include_router(demo_router.router)
 app.include_router(export_router.router)
 app.include_router(geo_router.router)
+app.include_router(metrics_router.router)
+app.include_router(cases_router.router)
 
 
 @app.get("/api/health")

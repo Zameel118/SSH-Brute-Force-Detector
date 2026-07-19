@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   CircleHelp,
   Download,
@@ -11,13 +11,29 @@ import {
   Zap,
 } from "lucide-react";
 import { api, getWsUrl } from "./api";
-import AttackMap from "./components/AttackMap";
 import BlockedPanel from "./components/BlockedPanel";
+import { CaseReplayModal } from "./components/CaseFilePage";
 import EventFeed from "./components/EventFeed";
 import IPListManager from "./components/IPListManager";
 import LiveActivityBar from "./components/LiveActivityBar";
 import StatsCharts from "./components/StatsCharts";
 import TourGuide, { shouldAutoShowTour } from "./components/TourGuide";
+
+const AttackMap = lazy(() => import("./components/AttackMap"));
+
+function AttackMapFallback() {
+  return (
+    <section className="panel overflow-hidden">
+      <div className="panel-header">
+        <h2 className="panel-title">Attack Origins Map</h2>
+        <span className="font-mono text-2xs text-chalk-muted">loading…</span>
+      </div>
+      <div className="h-80 flex items-center justify-center text-sm text-chalk-muted bg-ink-edge border-t border-ink-line">
+        Loading map tiles…
+      </div>
+    </section>
+  );
+}
 
 const MAX_EVENTS = 150;
 const THEME_KEY = "ssh_detector_theme";
@@ -65,6 +81,8 @@ export default function App() {
   const [tourOpen, setTourOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem(SOUND_KEY) === "1");
   const [statFlash, setStatFlash] = useState(false);
+  const [caseModal, setCaseModal] = useState(null); // { ip, mode, caseMeta }
+  const [caseBusyIp, setCaseBusyIp] = useState(null);
   const wsRef = useRef(null);
   const simulateRef = useRef(null);
 
@@ -300,6 +318,29 @@ export default function App() {
       showToast(err.message || "Unblock failed");
     } finally {
       setBusyIp(null);
+    }
+  }
+
+  function openReplay(ip) {
+    if (!ip) return;
+    setCaseModal({ ip, mode: "replay", caseMeta: null });
+  }
+
+  async function handleCreateCase(ip) {
+    if (!ip) return;
+    setCaseBusyIp(ip);
+    try {
+      const created = await api.createCase(ip);
+      setCaseModal({
+        ip,
+        mode: "created",
+        caseMeta: created,
+      });
+      showToast(`Case File ${created.public_id} ready`);
+    } catch (err) {
+      showToast(err.message || "Case File create failed");
+    } finally {
+      setCaseBusyIp(null);
     }
   }
 
@@ -585,16 +626,29 @@ export default function App() {
               onUnblock={handleUnblock}
               busyIp={busyIp}
               onCopyIp={copyIp}
+              onReplayIp={openReplay}
+              onCreateCase={handleCreateCase}
+              caseBusyIp={caseBusyIp}
             />
           </div>
         </div>
 
         <div className="mb-5" data-tour="map">
-          <AttackMap attackers={attackers} theme={theme} />
+          <Suspense fallback={<AttackMapFallback />}>
+            <AttackMap attackers={attackers} theme={theme} />
+          </Suspense>
         </div>
 
         <div className="mb-5">
-          <StatsCharts stats={stats} theme={theme} onCopyIp={copyIp} geoMap={geoMap} />
+          <StatsCharts
+            stats={stats}
+            theme={theme}
+            onCopyIp={copyIp}
+            geoMap={geoMap}
+            onReplayIp={openReplay}
+            onCreateCase={handleCreateCase}
+            caseBusyIp={caseBusyIp}
+          />
         </div>
 
         <div data-tour="lists" className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-10">
@@ -641,6 +695,16 @@ export default function App() {
             await handleSimulate();
           }
         }}
+      />
+
+      <CaseReplayModal
+        open={!!caseModal}
+        ip={caseModal?.ip}
+        mode={caseModal?.mode || "replay"}
+        caseMeta={caseModal?.caseMeta}
+        creating={!!caseBusyIp}
+        onClose={() => setCaseModal(null)}
+        onCreateCase={handleCreateCase}
       />
     </div>
   );
